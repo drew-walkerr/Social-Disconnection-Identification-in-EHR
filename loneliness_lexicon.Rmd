@@ -1,0 +1,94 @@
+---
+title: "loneliness_lexicon"
+author: "Drew Walker"
+date: "2024-07-31"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(irr)
+library(janitor)
+library(table1)
+library(here)
+library(gt)
+here()
+```
+
+
+```{r read-and-clean-data}
+# topic name 
+topic_name <- "social_isolation_and_loneliness"
+
+# Annotator 1 data cleaning 
+raw_annotation_data_1 <- read_csv("Copy of loneliness_social_isolation_lexicon_evaluation.csv") %>% 
+  clean_names() %>% 
+  select(word_id,expanded_word,refers_to_loneliness_social_isolation) %>% 
+  mutate(social_disconnection_1 = case_when(is.na(refers_to_loneliness_social_isolation)~0,TRUE~1))
+
+
+# Annotator 2 data clean
+raw_annotation_data_2 <- read_csv("loneliness_social_isolation_lexicon_evaluation KL.csv") %>% 
+  clean_names() %>% 
+    select(word_id,expanded_word,refers_to_loneliness_social_isolation) %>% 
+   mutate(social_disconnection_2 = case_when(is.na(refers_to_loneliness_social_isolation)~0,TRUE~1)) %>% 
+  select(word_id,social_disconnection_2,refers_to_loneliness_social_isolation_2=refers_to_loneliness_social_isolation)
+
+
+#combined_data_clean
+combined_df_clean <- left_join(raw_annotation_data_1,raw_annotation_data_2, by = "word_id")
+#reorder columns
+combined_df_clean <- combined_df_clean %>% 
+  select(word_id,expanded_word,refers_to_loneliness_social_isolation,refers_to_loneliness_social_isolation_2,social_disconnection_1,social_disconnection_2)
+
+```
+
+# Interrater kappas 
+
+
+```{r create-users-data-and-kappa}
+merged_kappa_df <- combined_df_clean %>% 
+  select(social_disconnection_1,social_disconnection_2)
+
+kappa_social_disconnection_score <- irr::kappa2(merged_kappa_df)
+kappa_social_disconnection_score
+
+
+```
+
+# ID Disagreements 
+
+```{r disagreements}
+agreement_df <- combined_df_clean %>% 
+  mutate(label_agree = case_when(social_disconnection_1== social_disconnection_2~1,                 TRUE~0),
+  adjudication = "")
+
+filename1 <- paste("social_disconnection_agreement_df.csv")
+write_csv(agreement_df, filename1)
+
+table(disagreement_df$label_agree) 
+#Agreement Percentage
+agreement_percent = (sum(disagreement_df$label_agree))/length(disagreement_df$label_agree)
+
+print(paste("Agreement percentage is",agreement_percent))
+
+
+disagreements <- disagreement_df %>% 
+  filter(label_agree == 0)
+
+gt(disagreements) %>% 
+  tab_header(paste(topic_name,"Annotation Disagreements"))%>% 
+  gtsave(paste(topic_name,"annotation_disagreements.html"), inline_css = TRUE, 
+         path = here())
+
+agreements <- disagreement_df %>% 
+  filter(topic_relevant_annotation.x == 1) %>% 
+  mutate(label = topic_relevant_annotation.x)
+
+table(agreements$label)
+write_csv(agreements, paste(topic_name,"nvdrs_annotation_agreements.csv"))
+
+write_csv(disagreements, paste(topic_name,"nvdrs_disagreements_to_adjudicate.csv"))
+
+
+```
