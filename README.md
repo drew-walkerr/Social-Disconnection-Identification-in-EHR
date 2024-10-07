@@ -5,3 +5,5 @@ Files should be run in order of:
 1. Lexicon Development
 2. Regular Expression Matchingd
 3. Classifiers (roberta, LLAMA-3, traditional ML) 
+
+![image](https://github.com/user-attachments/assets/bed5e063-168e-457a-9d3e-b771b0579482)
